@@ -1,0 +1,30 @@
+{
+  "name": "velsgenerate",
+  "version": "0.1.0",
+  "description": "CLI для генерации фото/видео/аудио через KIE API (kie.ai). Ноль зависимостей, живой реестр моделей.",
+  "type": "module",
+  "bin": {
+    "velsgenerate": "./bin/velsgenerate.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "keywords": [
+    "kie.ai",
+    "ai",
+    "image-generation",
+    "video-generation",
+    "audio-generation",
+    "cli"
+  ],
+  "license": "MIT"
+}
