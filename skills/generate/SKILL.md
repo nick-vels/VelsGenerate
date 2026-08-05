@@ -30,14 +30,13 @@ velsgenerate schema МОДЕЛЬ --json          # реальные поля inp
 ## Установка и онбординг — одной командой
 
 ```bash
-npm i -g github:nick-vels/VelsGenerate && velsgenerate setup   # CLI + мастер: ключ (с проверкой баланса) и этот скилл
+npx -y velsgenerate setup     # скачает CLI и запустит мастер: API-ключ (с проверкой баланса) + этот скилл
 ```
 
-Пакет не опубликован в npm-реестре: `npx -y velsgenerate` и `npm i -g velsgenerate`
-дадут 404 — ставь из GitHub (команда выше) или из исходников (`npm install -g .`
-в корне репозитория). Если CLI уже установлен — просто `velsgenerate setup`.
-Обновление: та же команда установки из GitHub, скилл — `npx -y skills update generate`;
-каталог моделей и схемы обновляются сами. Ключ также можно задать вручную:
+Если пакет уже установлен глобально — просто `velsgenerate setup`. Для постоянной
+установки после npx: `npm i -g velsgenerate`. Обновление: `npm i -g velsgenerate@latest`
+(CLI) и `npx -y skills update generate` (этот скилл); каталог моделей и схемы
+обновляются сами. Ключ также можно задать вручную:
 `export KIE_API_KEY=ваш_ключ` или `velsgenerate config --set-key ваш_ключ`.
 Если ключа нет — CLI скажет об этом понятной ошибкой; попроси ключ у пользователя,
 не выдумывай его. Проверка: `velsgenerate credits`.

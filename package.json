@@ -13,7 +13,8 @@
     "bin",
     "src",
     "skills",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "node --test \"tests/**/*.test.js\"",
@@ -25,7 +26,27 @@
     "image-generation",
     "video-generation",
     "audio-generation",
+    "text-to-image",
+    "image-to-video",
+    "text-to-speech",
+    "nano-banana",
+    "seedance",
+    "suno",
+    "veo3",
+    "agent-skill",
     "cli"
   ],
-  "license": "MIT"
+  "author": "Nick Vels",
+  "license": "MIT",
+  "homepage": "https://github.com/nick-vels/VelsGenerate#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nick-vels/VelsGenerate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nick-vels/VelsGenerate/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

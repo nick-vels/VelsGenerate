@@ -16,16 +16,14 @@ GPT Image, Wan, Suno, ElevenLabs и десятки других моделей.
 ## Установка и онбординг — одной командой
 
 ```bash
-npm i -g github:nick-vels/VelsGenerate && velsgenerate setup
+npx -y velsgenerate setup
 ```
 
-Команда поставит CLI и запустит мастер настройки (см. ниже). Из локальных
-исходников: `npm install -g .` в корне репозитория. Если пакет уже установлен —
-мастер доступен как `velsgenerate setup` (alias: `init`).
-
-> Пакет пока не опубликован в npm-реестре, поэтому `npx -y velsgenerate` и
-> `npm i -g velsgenerate` не сработают — ставьте из GitHub или из исходников.
-> После публикации (`npm publish`) заработают и они.
+`npx` скачает CLI и сразу запустит мастер настройки (см. ниже). Для постоянной
+установки: `npm i -g velsgenerate`. Альтернативы — прямо из GitHub
+(`npm i -g github:nick-vels/VelsGenerate`) или из локальных исходников
+(`npm install -g .` в корне репозитория). Если пакет уже установлен — мастер
+доступен как `velsgenerate setup` (alias: `init`).
 
 Мастер проведёт по шагам:
 
@@ -42,13 +40,14 @@ npm i -g github:nick-vels/VelsGenerate && velsgenerate setup
 ## Обновление
 
 ```bash
-npm i -g github:nick-vels/VelsGenerate   # обновить CLI до версии из main
-npx -y skills update generate            # обновить скилл агента (alias: upgrade)
-velsgenerate --version                   # проверить версию
+npm i -g velsgenerate@latest     # обновить CLI (если установлен глобально)
+npx -y skills update generate    # обновить скилл агента (alias: upgrade)
+velsgenerate --version           # проверить версию
 ```
 
+- Через `npx -y velsgenerate ...` версия всегда свежая — обновлять нечего.
+- Из GitHub (свежий main до публикации релиза): `npm i -g github:nick-vels/VelsGenerate`.
 - Из локальных исходников: `git pull && npm install -g .` в корне репозитория.
-- После публикации в npm обновление станет `npm i -g velsgenerate@latest`.
 - Скилл можно и переустановить поверх: `npx -y skills add nick-vels/VelsGenerate`.
   Восстановить ровно те версии, что записаны в `skills-lock.json`:
   `npx -y skills experimental_install`.
