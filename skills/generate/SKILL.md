@@ -15,11 +15,17 @@ CLI на Node.js (ноль зависимостей, Node >= 18) обращае�
 ```bash
 velsgenerate models --refresh --json       # обновить реестр из docs.kie.ai (делай раз в сессию)
 velsgenerate models --category image --search nano --json   # поиск по id и описанию
+velsgenerate schema МОДЕЛЬ --json          # реальные поля input этой модели
 ```
 
-В выводе `models --json` у каждой модели есть `required` (обязательные поля),
-`api`, `docUrl` (страница на docs.kie.ai с полной схемой input) и пометки
-`[stale]` (старый id — ищи свежий аналог через `--search`).
+В выводе `models --json` у каждой модели есть `required`, `api`, `docUrl` и пометка
+`[stale]` (в живом каталоге модели больше нет — ищи свежий аналог через `--search`).
+
+**CLI сам знает поля новых моделей.** Перед запуском `run` подтягивает схему модели
+из её документации (кэш 24ч) и по ней определяет, куда класть промпт и картинку,
+что обязательно и какие обязательные поля имеют значения по умолчанию. Поэтому модель,
+вышедшая на kie.ai вчера, работает без обновления CLI — не нужно ни угадывать поля,
+ни ждать релиза. Отключить: `--no-schema`, обновить принудительно: `--refresh-schema`.
 
 ## Установка и онбординг — одной командой
 
@@ -28,7 +34,9 @@ npx -y velsgenerate setup     # скачает CLI и запустит маст�
 ```
 
 Если пакет уже установлен глобально — просто `velsgenerate setup`. Для постоянной
-установки после npx: `npm i -g velsgenerate`. Ключ также можно задать вручную:
+установки после npx: `npm i -g velsgenerate`. Обновление: `npm i -g velsgenerate@latest`
+(CLI) и `npx -y skills update generate` (этот скилл); каталог моделей и схемы
+обновляются сами. Ключ также можно задать вручную:
 `export KIE_API_KEY=ваш_ключ` или `velsgenerate config --set-key ваш_ключ`.
 Если ключа нет — CLI скажет об этом понятной ошибкой; попроси ключ у пользователя,
 не выдумывай его. Проверка: `velsgenerate credits`.
@@ -39,9 +47,10 @@ npx -y velsgenerate setup     # скачает CLI и запустит маст�
 velsgenerate setup [--yes] [--local] [--repo РЕПО]     # мастер настройки (alias: init)
 velsgenerate credits                                   # баланс
 velsgenerate models [--refresh] [--category image|video|audio] [--search ТЕКСТ]
+velsgenerate schema МОДЕЛЬ [--raw]                     # поля input модели из её документации
 velsgenerate upload ФАЙЛ                               # локальный файл → fileUrl
 velsgenerate run МОДЕЛЬ [--prompt ТЕКСТ] [--image ФАЙЛ_ИЛИ_URL ...] \
-    [--set ключ=значение ...] [--json-input 'JSON'] \
+    [--set ключ=значение ...] [--json-input 'JSON'] [--dry-run] \
     [--wait] [--timeout СЕК] [--interval СЕК] [--download КАТАЛОГ]
 velsgenerate status TASK_ID [--api jobs|veo|runway|gpt4o|flux|suno]
 velsgenerate wait TASK_ID [--timeout 600] [--interval 5] [--api ...]
@@ -51,29 +60,48 @@ velsgenerate config --set-key KEY
 
 - `--set k=v` — значение парсится как JSON (`true`, `5`, `["a"]`), иначе строка.
 - `--json-input` — сырой JSON-объект поверх собранного input (любые поля любой модели).
-- `--image` — локальный путь (CLI сам загрузит через upload API) или готовый URL.
-- Реестр моделей живой: кэш `~/.velsgenerate/models-cache.json` с TTL 24ч,
-  `models --refresh` — принудительное обновление. Источник данных указан в выводе
-  (`live`/`cache`/`seed`).
+- `--image` — локальный путь (CLI загрузит его сам) или готовый URL.
+- **Локальный файл можно передать в любое поле**: `--set first_frame_url=./sky.jpg`,
+  `--set reference_image_urls='["./a.png"]'` — существующие пути загружаются автоматически.
+- `--dry-run` — показать итоговый input и не отправлять запрос (не тратит кредиты).
+- Кэши: реестр `~/.velsgenerate/models-cache.json`, схемы `~/.velsgenerate/schema-cache.json`,
+  оба с TTL 24ч.
 
 ## Правила (обязательно)
 
 1. **Сначала модель, потом запуск.** Не используй id моделей из памяти или примеров
    ниже без проверки — сначала `velsgenerate models --search <задача> --json`.
    Примеры в этом файле — иллюстрации синтаксиса, а не рекомендация конкретных id.
-2. **Всегда добавляй `--json`** — вывод машиночитаемый: `taskId`, `state`, `urls`, `tracks`.
-3. **Скачивай результаты сразу** — URL живут ~24 часа. Используй `--wait --download КАТАЛОГ`
+2. **Незнакомая модель — сначала `schema`.** `velsgenerate schema МОДЕЛЬ --json` даёт
+   точные имена полей, enum-значения и дефолты. Это дешевле, чем ловить 422.
+3. **Всегда добавляй `--json`** — вывод машиночитаемый: `taskId`, `state`, `urls`, `tracks`.
+4. **Скачивай результаты сразу** — URL живут ~24 часа. Используй `--wait --download КАТАЛОГ`
    или `velsgenerate download URL` сразу после получения `urls`.
-4. **Асинхронный паттерн run → wait**: либо сразу `run --wait --timeout 600`,
+5. **Асинхронный паттерн run → wait**: либо сразу `run --wait --timeout 600`,
    либо `run` (получил `taskId`) → `wait <taskId>`. Видео и музыка могут генерироваться
    минуты — для них ставь `--timeout 900` или больше.
-5. **Новая/незнакомая модель**: у динамических моделей api `jobs`, `--prompt` работает,
-   остальные поля добирай через `--set`/`--json-input` по схеме из `docUrl`
-   (вывод `models --json`) или со страницы модели на docs.kie.ai.
-6. Не передавай секреты и ключ в аргументах команд (кроме `config --set-key`).
-7. При ошибке API смотри на `code`: 401 — ключ, 402 — кредиты кончились, 422 — невалидный
-   input (сверься с документацией модели), 429 — rate limit (повтори позже), 451 — API не скачал
-   входное изображение (перезалей через `upload`), 455 — maintenance, 501 — генерация не удалась.
+6. **Не трать кредиты на пробы.** Проверять сборку запроса — через `--dry-run`;
+   каждый реальный `run` списывает кредиты, даже если результат не понравился.
+7. Не передавай секреты и ключ в аргументах команд (кроме `config --set-key`).
+8. При ошибке API смотри на `code`: 401 — ключ, 402 — кредиты кончились, 422 — невалидный
+   input (сверься с `velsgenerate schema МОДЕЛЬ`), 429 — rate limit (повтори позже),
+   451 — API не скачал входное изображение (перезалей через `upload`), 455 — maintenance,
+   500/501 — генерация не удалась (см. текст ошибки, часто помогает смена параметров).
+
+## Типичные грабли
+
+- **`[500] output audio may be related to copyright restrictions`** у видеомоделей
+  (Seedance и другие с `generate_audio`): модель не смогла легально сгенерировать
+  звуковую дорожку. Перезапусти с `--set generate_audio=false`.
+- **Квадратная картинка в 16:9** — модели по умолчанию ставят `aspect_ratio: 16:9`
+  и обрежут кадр. Для анимации готового изображения задавай соотношение исходника
+  (`--set aspect_ratio=1:1`) или `adaptive`, если модель его поддерживает.
+- **Поле картинки называется по-разному**: `image_url`, `image_urls`, `input_urls`,
+  `first_frame_url`, `image`. `--image` подставит правильное само; при ручном `--set`
+  сверься со `schema`.
+- **Дороже ≠ лучше для черновика**: сначала прогони дешёвую/быструю версию модели
+  (`-fast`, `-mini`, `480p`, короткая длительность), финальный рендер — после утверждения.
+- **`[451]`** — API не смог скачать твой URL. Перезалей файл: `velsgenerate upload ФАЙЛ`.
 
 ## Как выбрать модель под задачу
 
@@ -101,17 +129,21 @@ velsgenerate run google/nano-banana \
   --wait --download ./out --json
 ```
 
-### Image-to-video (локальный файл)
+### Оживить готовую картинку (image-to-video)
 
 ```bash
-# --image сам загрузит файл через upload API
-velsgenerate run veo3_fast --prompt "кот машет лапой, камера статична" \
-  --image ./cat.png --set aspect_ratio=16:9 \
+velsgenerate schema bytedance/seedance-2-mini --json   # узнать поля и дефолты
+velsgenerate run bytedance/seedance-2-mini \
+  --prompt "облака медленно плывут, свет меняется, камера статична" \
+  --image ./sky.jpg \
+  --set duration=6 --set resolution=480p --set aspect_ratio=1:1 \
+  --set generate_audio=false \
   --wait --timeout 900 --download ./out --json
 ```
 
-Явный двухшаговый вариант: `velsgenerate upload ./cat.png` → подставить `fileUrl`
-в `--image` или `--set image_url=...`.
+`--image` кладётся в то поле, которое реально есть у модели (`first_frame_url`,
+`image_urls`, …). Явный двухшаговый вариант: `velsgenerate upload ./sky.jpg` →
+подставить URL в `--set ПОЛЕ=...`.
 
 ### Text-to-music (Suno)
 
@@ -137,11 +169,14 @@ velsgenerate run elevenlabs/text-to-speech-turbo-2-5 \
   --wait --download ./out --json
 ```
 
+Список доступных голосов — в `velsgenerate schema elevenlabs/text-to-speech-turbo-2-5`
+(поле `voice`, enum с id голосов).
+
 ### Апскейл
 
 ```bash
 velsgenerate run topaz/image-upscale --image ./photo.png \
-  --wait --download ./out --json
+  --set upscale_factor=2 --wait --download ./out --json
 ```
 
 ### Проверка зависшей задачи
@@ -151,8 +186,11 @@ velsgenerate status <taskId> --json        # API определится авто
 velsgenerate wait <taskId> --timeout 600 --json
 ```
 
-### Модель вне реестра
+### Совсем новая модель (ещё не в каталоге)
 
 ```bash
 velsgenerate run some/future-model --api jobs --json-input '{"prompt": "..."}' --json
 ```
+
+Если модель уже в каталоге, но появилась после последнего обновления кэша, `run`
+обновит реестр сам — `--api` указывать не нужно.

@@ -64,6 +64,25 @@ function guessUploadPath(filePath) {
 }
 
 /**
+ * Достаёт URL загруженного файла из ответа upload-эндпоинта.
+ * Схема ответа менялась: downloadUrl (актуальная), fileUrl/url (старые),
+ * плюс данные иногда лежат во вложенном объекте (data/result/file).
+ * Возвращает URL или null.
+ */
+export function extractFileUrl(data, depth = 0) {
+  if (!data || typeof data !== "object" || depth > 3) return null;
+  for (const key of ["downloadUrl", "fileUrl", "url", "fileURL", "download_url", "file_url"]) {
+    const value = data[key];
+    if (typeof value === "string" && /^https?:\/\//.test(value)) return value;
+  }
+  for (const key of ["data", "result", "file", "fileInfo"]) {
+    const nested = extractFileUrl(data[key], depth + 1);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+/**
  * Приводит ответ status-эндпоинта к единому виду:
  * { api, state: pending|success|fail, urls, tracks, fail_msg, progress, raw }.
  */
@@ -180,6 +199,8 @@ export class KieClient {
     }
     const code = payload.code;
     if (code === 200) return payload.data;
+    // upload-хост иногда отвечает без конверта: {success: true, downloadUrl: ...}
+    if (code === undefined && payload.success === true && resp.ok) return payload;
     const msg = String(payload.msg || payload.message || "");
     if (code === 404 || NOT_FOUND_MARKERS.some((m) => msg.toLowerCase().includes(m))) {
       throw new TaskNotFound(msg || "задача не найдена", code);
@@ -241,10 +262,8 @@ export class KieClient {
       throw new KieError(`сетевая ошибка при загрузке: ${exc.message}`);
     }
     const data = await KieClient._handle(resp);
-    if (data && typeof data === "object") {
-      const url = data.fileUrl || data.url;
-      if (url) return url;
-    }
+    const url = extractFileUrl(data);
+    if (url) return url;
     throw new KieError(`загрузка файла: неожиданный ответ: ${JSON.stringify(data)}`);
   }
 

@@ -36,6 +36,23 @@ npx -y velsgenerate setup
 Неинтерактивный режим: `velsgenerate setup --yes` (берёт ключ из env).
 Без мастера: `export KIE_API_KEY=ваш_ключ` или `velsgenerate config --set-key ваш_ключ`.
 
+## Обновление
+
+```bash
+npm i -g velsgenerate@latest     # обновить CLI (если установлен глобально)
+npx -y skills update generate    # обновить скилл агента (alias: upgrade)
+velsgenerate --version           # проверить версию
+```
+
+- Через `npx -y velsgenerate ...` версия всегда свежая — обновлять нечего.
+- Из исходников: `git pull && npm install -g .` в корне репозитория.
+- Скилл можно и переустановить поверх: `npx -y skills add nick-vels/VelsGenerate`.
+  Восстановить ровно те версии, что записаны в `skills-lock.json`:
+  `npx -y skills experimental_install`.
+- **Каталог моделей и схемы обновлять вручную не нужно** — они живые и не зависят
+  от версии CLI (кэш 24ч). Принудительно: `velsgenerate models --refresh`
+  и `velsgenerate run ... --refresh-schema`.
+
 ## Примеры
 
 ```bash
@@ -84,22 +101,50 @@ URL результатов живут ограниченное время (~24 �
 - Метаданные seed-моделей (обязательные поля, тип API) всегда приоритетны;
   новые модели из каталога просто добавляются. Seed-модели, пропавшие из
   живого каталога, помечаются `[stale]` — они могли быть переименованы.
-- Для новых моделей (api `jobs`) валидация мягкая: `--prompt` работает,
-  остальные поля добираются через `--set ключ=значение` или `--json-input '{"..."}'`.
+  Модели выделенных API (`suno`, `veo3*`, `flux-kontext-*`, `gpt4o-image`,
+  `runway-gen3`) живут вне market-каталога и `[stale]` не помечаются.
+
+## Новые модели работают без обновления CLI
+
+`run` перед запуском читает схему модели из её документации (кэш
+`~/.velsgenerate/schema-cache.json`, TTL 24ч) и выводит из неё:
+
+- куда положить `--prompt` (`prompt`, `text`, …) и `--image`
+  (`image_url`, `image_urls`, `input_urls`, `first_frame_url`, `image`, …);
+- какие поля обязательны — проверка происходит до сетевого запроса;
+- обязательные поля, у которых есть значение по умолчанию, подставляются сами
+  (иначе API отвечает 422 на, казалось бы, корректный запрос).
+
+Поэтому модель, вышедшая на kie.ai вчера, вызывается обычным
+`velsgenerate run <новая-модель> --prompt ... --image ...`. Если модели нет
+в кэше реестра, `run` обновит каталог сам. Флаги: `--no-schema` (не ходить
+за схемой), `--refresh-schema` (обновить кэш), `--dry-run` (показать итоговый
+запрос и ничего не отправлять).
+
+Поля модели можно посмотреть напрямую:
+
+```bash
+velsgenerate schema bytedance/seedance-2-mini          # таблица полей, enum, дефолты
+velsgenerate schema bytedance/seedance-2-mini --raw    # плюс сырой YAML схемы
+```
+
+Соответствие встроенного seed-реестра живым схемам проверяется скриптом
+`npm run audit:registry` (ненулевой exit code, если что-то разошлось).
 
 ## Команды
 
-| Команда                                                                                                                                               | Назначение                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `velsgenerate setup [--yes] [--local] [--repo РЕПО]`                                                                                                   | мастер настройки (ключ + скилл агента)                                   |
-| `velsgenerate credits`                                                                                                                                     | баланс кредитов                                                                          |
-| `velsgenerate models [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                     | живой реестр моделей                                                                 |
-| `velsgenerate upload ФАЙЛ`                                                                                                                             | загрузка локального файла →`fileUrl`                                         |
-| `velsgenerate run МОДЕЛЬ [--prompt] [--image ...] [--set k=v ...] [--json-input JSON] [--wait] [--timeout] [--interval] [--download КАТАЛОГ]` | создание задачи генерации                                                       |
-| `velsgenerate status TASK_ID [--api ...]`                                                                                                                  | статус; без`--api` — автоперебор jobs → veo → suno → gpt4o → flux → runway |
-| `velsgenerate wait TASK_ID [--timeout 600] [--interval 5] [--api ...]`                                                                                     | polling до success/fail                                                                              |
-| `velsgenerate download URL [-o ПУТЬ]`                                                                                                                  | скачать файл                                                                                |
-| `velsgenerate config --set-key KEY`                                                                                                                        | сохранить API-ключ                                                                        |
+| Команда                                                                                                                                                           | Назначение                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `velsgenerate setup [--yes] [--local] [--repo РЕПО]`                                                                                                               | мастер настройки (ключ + скилл агента)                                   |
+| `velsgenerate credits`                                                                                                                                                 | баланс кредитов                                                                          |
+| `velsgenerate models [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                                 | живой реестр моделей                                                                 |
+| `velsgenerate schema МОДЕЛЬ [--raw]`                                                                                                                             | поля input модели из её документации                                         |
+| `velsgenerate upload ФАЙЛ`                                                                                                                                         | загрузка локального файла →`fileUrl`                                         |
+| `velsgenerate run МОДЕЛЬ [--prompt] [--image ...] [--set k=v ...] [--json-input JSON] [--dry-run] [--wait] [--timeout] [--interval] [--download КАТАЛОГ]` | создание задачи генерации                                                       |
+| `velsgenerate status TASK_ID [--api ...]`                                                                                                                              | статус; без`--api` — автоперебор jobs → veo → suno → gpt4o → flux → runway |
+| `velsgenerate wait TASK_ID [--timeout 600] [--interval 5] [--api ...]`                                                                                                 | polling до success/fail                                                                              |
+| `velsgenerate download URL [-o ПУТЬ]`                                                                                                                              | скачать файл                                                                                |
+| `velsgenerate config --set-key KEY`                                                                                                                                    | сохранить API-ключ                                                                        |
 
 Общий флаг `--json` — машинный вывод JSON. При ошибке API — ненулевой exit code
 и сообщение с `code`/`msg` (401 ключ, 402 кредиты, 422 валидация, 429 rate limit,
@@ -115,5 +160,6 @@ URL результатов живут ограниченное время (~24 �
 ## Тесты
 
 ```bash
-npm test          # node:test, без сети
+npm test              # node:test, без сети
+npm run audit:registry # сверка seed-реестра с живыми схемами docs.kie.ai (нужна сеть)
 ```

@@ -103,9 +103,15 @@ export function mergeRegistries(liveEntries, seed = SEED_MODELS) {
   for (const [id, seedEntry] of Object.entries(seed)) {
     if (merged.has(id)) {
       // seed приоритетен по метаданным; подтверждено живым каталогом — не stale
-      merged.set(id, { ...seedEntry, stale: false, docUrl: merged.get(id).docUrl });
+      merged.set(id, {
+        ...seedEntry,
+        stale: false,
+        docUrl: merged.get(id).docUrl || seedEntry.docUrl || null,
+      });
     } else {
-      merged.set(id, { ...seedEntry, stale: true });
+      // Выделенные API (veo/suno/flux/gpt4o/runway) в market-каталог не входят
+      // и живыми страницами не подтверждаются — они не stale.
+      merged.set(id, { ...seedEntry, stale: !seedEntry.dedicated });
     }
   }
   return merged;
@@ -115,6 +121,11 @@ async function fetchText(url, timeoutMs = 30_000) {
   const resp = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!resp.ok) throw new Error(`HTTP ${resp.status} для ${url}`);
   return resp.text();
+}
+
+/** Скачивает markdown-страницу документации модели (docs.kie.ai/market/...). */
+export function fetchDoc(url, timeoutMs = 30_000) {
+  return fetchText(url, timeoutMs);
 }
 
 async function mapWithConcurrency(items, limit, fn) {
