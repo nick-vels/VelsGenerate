@@ -35,8 +35,10 @@ npx -y velsgenerate setup
 1. **API-ключ** — предложит взять `KIE_API_KEY` из окружения или ввести вручную
    (ключ выдаётся на https://kie.ai/api-key), проверит его запросом баланса
    и сохранит в `~/.velsgenerate/config.json` (chmod 600).
-2. **Скилл для агента** — установит скилл `generate` через `npx skills add <repo>`
-   или скопирует его из пакета локально (`velsgenerate setup --local`).
+2. **Скилл для агента** — установит скилл `generate` командой
+   `npx -y skills add nick-vels/VelsGenerate` или скопирует его из пакета
+   локально (`velsgenerate setup --local`). Другой источник — флаг
+   `velsgenerate setup --repo владелец/репозиторий`.
 3. Покажет сводку и пример первой генерации.
 
 Неинтерактивный режим: `velsgenerate setup --yes` (берёт ключ из env).
@@ -160,9 +162,18 @@ velsgenerate schema bytedance/seedance-2-mini --raw    # плюс сырой YAM
 ## Скилл для агента
 
 Готовый скилл с инструкцией по работе с CLI: [`skills/generate/SKILL.md`](skills/generate/SKILL.md)
-(в пакете) — ставится через `velsgenerate setup`. Каталог моделей в скилл намеренно
-не зашит: актуальный список агент каждый раз получает из живого реестра —
-`velsgenerate models --refresh`.
+(входит в пакет). Установка и обновление:
+
+```bash
+velsgenerate setup                          # мастер: ключ + скилл
+npx -y skills add nick-vels/VelsGenerate    # только скилл
+npx -y skills update generate               # обновить установленный скилл
+velsgenerate setup --local                  # скопировать скилл из пакета в ./.agents/skills
+```
+
+Каталог моделей в скилл намеренно не зашит: актуальный список агент каждый раз
+получает из живого реестра (`velsgenerate models --refresh`), а поля конкретной
+модели — из `velsgenerate schema МОДЕЛЬ`.
 
 ## Тесты
 
