@@ -16,7 +16,7 @@
  *   есть значение по умолчанию — подставляются, если пользователь не задал
  * - description: краткое описание и важные опциональные поля
  *
- * Метаданные сверены со схемами моделей на docs.kie.ai (velsgenerate schema МОДЕЛЬ).
+ * Метаданные сверены со схемами моделей на docs.kie.ai (velsvisual schema МОДЕЛЬ).
  */
 
 export const CATEGORIES = ["image", "video", "audio"];

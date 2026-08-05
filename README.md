@@ -1,17 +1,17 @@
 ```
-__     _______ _     ____   ____ _____ _   _ _____ ____      _  _____ _____
-\ \   / / ____| |   / ___| / ___| ____| \ | | ____|  _ \    / \|_   _| ____|
- \ \ / /|  _| | |   \___ \| |  _|  _| |  \| |  _| | |_) |  / _ \ | | |  _|
-  \ V / | |___| |___ ___) | |_| | |___| |\  | |___|  _ <  / ___ \| | | |___
-   \_/  |_____|_____|____/ \____|_____|_| \_|_____|_| \_\/_/   \_\_| |_____|
+__     _______ _     ____   __     _____ ____  _   _   _    _
+\ \   / / ____| |   / ___|  \ \   / /_ _/ ___|| | | | / \  | |
+ \ \ / /|  _| | |   \___ \   \ \ / / | |\___ \| | | |/ _ \ | |
+  \ V / | |___| |___ ___) |   \ V /  | | ___) | |_| / ___ \| |___
+   \_/  |_____|_____|____/     \_/  |___|____/ \___/_/   \_\_____|
 ```
 
-# VelsGenerate
+# VelsVisual
 
-[![npm](https://img.shields.io/npm/v/velsgenerate.svg)](https://www.npmjs.com/package/velsgenerate)
-[![CI](https://github.com/nick-vels/VelsGenerate/actions/workflows/ci.yml/badge.svg)](https://github.com/nick-vels/VelsGenerate/actions/workflows/ci.yml)
-[![node](https://img.shields.io/node/v/velsgenerate.svg)](https://nodejs.org)
-[![license](https://img.shields.io/npm/l/velsgenerate.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/velsvisual.svg)](https://www.npmjs.com/package/velsvisual)
+[![CI](https://github.com/nick-vels/VelsVisual/actions/workflows/ci.yml/badge.svg)](https://github.com/nick-vels/VelsVisual/actions/workflows/ci.yml)
+[![node](https://img.shields.io/node/v/velsvisual.svg)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/velsvisual.svg)](LICENSE)
 
 CLI на Node.js для генерации **фото, видео и аудио** через [KIE API](https://kie.ai) (docs.kie.ai).
 Один инструмент поверх всех API платформы: универсальный Market API (jobs), Seedance,
@@ -21,77 +21,77 @@ GPT Image, Wan, Suno, ElevenLabs и десятки других моделей.
 ## Установка и онбординг — одной командой
 
 ```bash
-npx -y velsgenerate setup
+npx -y velsvisual setup
 ```
 
 `npx` скачает CLI и сразу запустит мастер настройки (см. ниже). Для постоянной
-установки: `npm i -g velsgenerate`. Альтернативы — прямо из GitHub
-(`npm i -g github:nick-vels/VelsGenerate`) или из локальных исходников
+установки: `npm i -g velsvisual`. Альтернативы — прямо из GitHub
+(`npm i -g github:nick-vels/VelsVisual`) или из локальных исходников
 (`npm install -g .` в корне репозитория). Если пакет уже установлен — мастер
-доступен как `velsgenerate setup` (alias: `init`).
+доступен как `velsvisual setup` (alias: `init`).
 
 Мастер проведёт по шагам:
 
 1. **API-ключ** — предложит взять `KIE_API_KEY` из окружения или ввести вручную
    (ключ выдаётся на https://kie.ai/api-key), проверит его запросом баланса
-   и сохранит в `~/.velsgenerate/config.json` (chmod 600).
-2. **Скилл для агента** — установит скилл `generate` командой
-   `npx -y skills add nick-vels/VelsGenerate` или скопирует его из пакета
-   локально (`velsgenerate setup --local`). Другой источник — флаг
-   `velsgenerate setup --repo владелец/репозиторий`.
+   и сохранит в `~/.velsvisual/config.json` (chmod 600).
+2. **Скилл для агента** — установит скилл `visual` командой
+   `npx -y skills add nick-vels/VelsVisual` или скопирует его из пакета
+   локально (`velsvisual setup --local`). Другой источник — флаг
+   `velsvisual setup --repo владелец/репозиторий`.
 3. Покажет сводку и пример первой генерации.
 
-Неинтерактивный режим: `velsgenerate setup --yes` (берёт ключ из env).
-Без мастера: `export KIE_API_KEY=ваш_ключ` или `velsgenerate config --set-key ваш_ключ`.
+Неинтерактивный режим: `velsvisual setup --yes` (берёт ключ из env).
+Без мастера: `export KIE_API_KEY=ваш_ключ` или `velsvisual config --set-key ваш_ключ`.
 
 ## Обновление
 
 ```bash
-npm i -g velsgenerate@latest     # обновить CLI (если установлен глобально)
-npx -y skills update generate    # обновить скилл агента (alias: upgrade)
-velsgenerate --version           # проверить версию
+npm i -g velsvisual@latest     # обновить CLI (если установлен глобально)
+npx -y skills update visual    # обновить скилл агента (alias: upgrade)
+velsvisual --version           # проверить версию
 ```
 
-- Через `npx -y velsgenerate ...` версия всегда свежая — обновлять нечего.
-- Из GitHub (свежий main до публикации релиза): `npm i -g github:nick-vels/VelsGenerate`.
+- Через `npx -y velsvisual ...` версия всегда свежая — обновлять нечего.
+- Из GitHub (свежий main до публикации релиза): `npm i -g github:nick-vels/VelsVisual`.
 - Из локальных исходников: `git pull && npm install -g .` в корне репозитория.
-- Скилл можно и переустановить поверх: `npx -y skills add nick-vels/VelsGenerate`.
+- Скилл можно и переустановить поверх: `npx -y skills add nick-vels/VelsVisual`.
   Восстановить ровно те версии, что записаны в `skills-lock.json`:
   `npx -y skills experimental_install`.
 - **Каталог моделей и схемы обновлять вручную не нужно** — они живые и не зависят
-  от версии CLI (кэш 24ч). Принудительно: `velsgenerate models --refresh`
-  и `velsgenerate run ... --refresh-schema`.
+  от версии CLI (кэш 24ч). Принудительно: `velsvisual models --refresh`
+  и `velsvisual run ... --refresh-schema`.
 
 ## Примеры
 
 ```bash
 # Картинка (text-to-image) — создать задачу, дождаться, скачать в ./out
-velsgenerate run google/nano-banana --prompt "рыжий кот в скафандре, кинематографично" \
+velsvisual run google/nano-banana --prompt "рыжий кот в скафандре, кинематографично" \
   --wait --download ./out
 
 # Видео из картинки: локальный файл будет сначала загружен через upload API
-velsgenerate run veo3_fast --prompt "кот машет лапой" --image ./cat.png \
+velsvisual run veo3_fast --prompt "кот машет лапой" --image ./cat.png \
   --set aspect_ratio=16:9 --wait --timeout 900 --download ./out
 
 # Музыка (Suno, custom mode)
-velsgenerate run suno --prompt "песня про осенний город" \
+velsvisual run suno --prompt "песня про осенний город" \
   --set customMode=true --set style="indie rock, female vocal" --set title="Осень" \
   --wait --download ./out
 
 # Озвучка (ElevenLabs TTS)
-velsgenerate run elevenlabs/text-to-speech-turbo-2-5 \
+velsvisual run elevenlabs/text-to-speech-turbo-2-5 \
   --prompt "Привет! Это тестовая озвучка." --wait --download ./out
 
 # Апскейл изображения
-velsgenerate run topaz/image-upscale --image ./photo.png --wait --download ./out
+velsvisual run topaz/image-upscale --image ./photo.png --wait --download ./out
 ```
 
 Без `--wait` команда `run` сразу печатает `taskId`; дальше — асинхронный паттерн:
 
 ```bash
-velsgenerate status <taskId>     # статус (API определяется автоматически)
-velsgenerate wait <taskId>       # блокирующее ожидание, печатает resultUrls
-velsgenerate download <URL> -o file.png
+velsvisual status <taskId>     # статус (API определяется автоматически)
+velsvisual wait <taskId>       # блокирующее ожидание, печатает resultUrls
+velsvisual download <URL> -o file.png
 ```
 
 URL результатов живут ограниченное время (~24 часа) — скачивайте сразу
@@ -101,10 +101,10 @@ URL результатов живут ограниченное время (~24 �
 
 Модели на kie.ai выходят каждую неделю, поэтому каталог не зашит в код:
 
-- `velsgenerate models` — показывает **живой реестр**: CLI скачивает каталог
+- `velsvisual models` — показывает **живой реестр**: CLI скачивает каталог
   с https://docs.kie.ai/llms.txt и market-страницы документации.
-- Кэш — `~/.velsgenerate/models-cache.json`, авто-обновление раз в 24 часа;
-  принудительно — `velsgenerate models --refresh`.
+- Кэш — `~/.velsvisual/models-cache.json`, авто-обновление раз в 24 часа;
+  принудительно — `velsvisual models --refresh`.
 - Если сети нет: свежий кэш → старый кэш → встроенный seed-реестр.
   Источник (`live`/`cache`/`seed`) и дата указываются в выводе.
 - Метаданные seed-моделей (обязательные поля, тип API) всегда приоритетны;
@@ -116,7 +116,7 @@ URL результатов живут ограниченное время (~24 �
 ## Новые модели работают без обновления CLI
 
 `run` перед запуском читает схему модели из её документации (кэш
-`~/.velsgenerate/schema-cache.json`, TTL 24ч) и выводит из неё:
+`~/.velsvisual/schema-cache.json`, TTL 24ч) и выводит из неё:
 
 - куда положить `--prompt` (`prompt`, `text`, …) и `--image`
   (`image_url`, `image_urls`, `input_urls`, `first_frame_url`, `image`, …);
@@ -125,7 +125,7 @@ URL результатов живут ограниченное время (~24 �
   (иначе API отвечает 422 на, казалось бы, корректный запрос).
 
 Поэтому модель, вышедшая на kie.ai вчера, вызывается обычным
-`velsgenerate run <новая-модель> --prompt ... --image ...`. Если модели нет
+`velsvisual run <новая-модель> --prompt ... --image ...`. Если модели нет
 в кэше реестра, `run` обновит каталог сам. Флаги: `--no-schema` (не ходить
 за схемой), `--refresh-schema` (обновить кэш), `--dry-run` (показать итоговый
 запрос и ничего не отправлять).
@@ -133,8 +133,8 @@ URL результатов живут ограниченное время (~24 �
 Поля модели можно посмотреть напрямую:
 
 ```bash
-velsgenerate schema bytedance/seedance-2-mini          # таблица полей, enum, дефолты
-velsgenerate schema bytedance/seedance-2-mini --raw    # плюс сырой YAML схемы
+velsvisual schema bytedance/seedance-2-mini          # таблица полей, enum, дефолты
+velsvisual schema bytedance/seedance-2-mini --raw    # плюс сырой YAML схемы
 ```
 
 Соответствие встроенного seed-реестра живым схемам проверяется скриптом
@@ -144,18 +144,18 @@ velsgenerate schema bytedance/seedance-2-mini --raw    # плюс сырой YAM
 
 | Команда                                                                                                                                                           | Назначение                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `velsgenerate setup [--yes] [--local] [--repo РЕПО]`                                                                                                               | мастер настройки (ключ + скилл агента)                                   |
-| `velsgenerate credits`                                                                                                                                                 | баланс кредитов                                                                          |
-| `velsgenerate models [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                                 | живой реестр моделей                                                                 |
-| `velsgenerate recommend image\|video\|audio [--refresh]`                                                                                                          | подбор модели: последние версии популярных семейств с ценами и тиром качества        |
-| `velsgenerate pricing [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                              | цены моделей в кредитах и $ (живой прайс kie.ai, кэш 24ч)                            |
-| `velsgenerate schema МОДЕЛЬ [--raw]`                                                                                                                             | поля input модели из её документации                                         |
-| `velsgenerate upload ФАЙЛ`                                                                                                                                         | загрузка локального файла →`fileUrl`                                         |
-| `velsgenerate run МОДЕЛЬ [--prompt] [--image ...] [--set k=v ...] [--json-input JSON] [--dry-run] [--wait] [--timeout] [--interval] [--download КАТАЛОГ]` | создание задачи генерации                                                       |
-| `velsgenerate status TASK_ID [--api ...]`                                                                                                                              | статус; без`--api` — автоперебор jobs → veo → suno → gpt4o → flux → runway |
-| `velsgenerate wait TASK_ID [--timeout 600] [--interval 5] [--api ...]`                                                                                                 | polling до success/fail                                                                              |
-| `velsgenerate download URL [-o ПУТЬ]`                                                                                                                              | скачать файл                                                                                |
-| `velsgenerate config --set-key KEY`                                                                                                                                    | сохранить API-ключ                                                                        |
+| `velsvisual setup [--yes] [--local] [--repo РЕПО]`                                                                                                               | мастер настройки (ключ + скилл агента)                                   |
+| `velsvisual credits`                                                                                                                                                 | баланс кредитов                                                                          |
+| `velsvisual models [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                                 | живой реестр моделей                                                                 |
+| `velsvisual recommend image\|video\|audio [--refresh]`                                                                                                          | подбор модели: последние версии популярных семейств с ценами и тиром качества        |
+| `velsvisual pricing [--refresh] [--category image\|video\|audio] [--search ТЕКСТ]`                                                                              | цены моделей в кредитах и $ (живой прайс kie.ai, кэш 24ч)                            |
+| `velsvisual schema МОДЕЛЬ [--raw]`                                                                                                                             | поля input модели из её документации                                         |
+| `velsvisual upload ФАЙЛ`                                                                                                                                         | загрузка локального файла →`fileUrl`                                         |
+| `velsvisual run МОДЕЛЬ [--prompt] [--image ...] [--set k=v ...] [--json-input JSON] [--dry-run] [--wait] [--timeout] [--interval] [--download КАТАЛОГ]` | создание задачи генерации                                                       |
+| `velsvisual status TASK_ID [--api ...]`                                                                                                                              | статус; без`--api` — автоперебор jobs → veo → suno → gpt4o → flux → runway |
+| `velsvisual wait TASK_ID [--timeout 600] [--interval 5] [--api ...]`                                                                                                 | polling до success/fail                                                                              |
+| `velsvisual download URL [-o ПУТЬ]`                                                                                                                              | скачать файл                                                                                |
+| `velsvisual config --set-key KEY`                                                                                                                                    | сохранить API-ключ                                                                        |
 
 Общий флаг `--json` — машинный вывод JSON. При ошибке API — ненулевой exit code
 и сообщение с `code`/`msg` (401 ключ, 402 кредиты, 422 валидация, 429 rate limit,
@@ -163,19 +163,19 @@ velsgenerate schema bytedance/seedance-2-mini --raw    # плюс сырой YAM
 
 ## Скилл для агента
 
-Готовый скилл с инструкцией по работе с CLI: [`skills/generate/SKILL.md`](skills/generate/SKILL.md)
+Готовый скилл с инструкцией по работе с CLI: [`skills/visual/SKILL.md`](skills/visual/SKILL.md)
 (входит в пакет). Установка и обновление:
 
 ```bash
-velsgenerate setup                          # мастер: ключ + скилл
-npx -y skills add nick-vels/VelsGenerate    # только скилл
-npx -y skills update generate               # обновить установленный скилл
-velsgenerate setup --local                  # скопировать скилл из пакета в ./.agents/skills
+velsvisual setup                          # мастер: ключ + скилл
+npx -y skills add nick-vels/VelsVisual    # только скилл
+npx -y skills update visual               # обновить установленный скилл
+velsvisual setup --local                  # скопировать скилл из пакета в ./.agents/skills
 ```
 
 Каталог моделей в скилл намеренно не зашит: актуальный список агент каждый раз
-получает из живого реестра (`velsgenerate models --refresh`), а поля конкретной
-модели — из `velsgenerate schema МОДЕЛЬ`.
+получает из живого реестра (`velsvisual models --refresh`), а поля конкретной
+модели — из `velsvisual schema МОДЕЛЬ`.
 
 ## Тесты
 

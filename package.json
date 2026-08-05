@@ -1,10 +1,10 @@
 {
-  "name": "velsgenerate",
+  "name": "velsvisual",
   "version": "0.2.0",
   "description": "CLI для генерации фото/видео/аудио через KIE API (kie.ai). Ноль зависимостей, живой реестр моделей.",
   "type": "module",
   "bin": {
-    "velsgenerate": "./bin/velsgenerate.js"
+    "velsvisual": "./bin/velsvisual.js"
   },
   "engines": {
     "node": ">=18"
@@ -38,13 +38,13 @@
   ],
   "author": "Nick Vels",
   "license": "MIT",
-  "homepage": "https://github.com/nick-vels/VelsGenerate#readme",
+  "homepage": "https://github.com/nick-vels/VelsVisual#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nick-vels/VelsGenerate.git"
+    "url": "git+https://github.com/nick-vels/VelsVisual.git"
   },
   "bugs": {
-    "url": "https://github.com/nick-vels/VelsGenerate/issues"
+    "url": "https://github.com/nick-vels/VelsVisual/issues"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 /**
  * Прайс-лист KIE: публичный эндпоинт https://api.kie.ai/client/v1/model-pricing/page
- * (его использует страница kie.ai/pricing), кэш в ~/.velsgenerate/pricing-cache.json
+ * (его использует страница kie.ai/pricing), кэш в ~/.velsvisual/pricing-cache.json
  * (TTL 24ч). Цены зависят от параметров (разрешение, режим) — у одной модели
  * может быть несколько записей.
  *
@@ -13,7 +13,7 @@ import os from "node:os";
 import path from "node:path";
 
 export const PRICING_URL = "https://api.kie.ai/client/v1/model-pricing/page";
-export const CACHE_PATH = path.join(os.homedir(), ".velsgenerate", "pricing-cache.json");
+export const CACHE_PATH = path.join(os.homedir(), ".velsvisual", "pricing-cache.json");
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const PAGE_SIZE = 100;
 

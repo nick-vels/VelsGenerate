@@ -1,5 +1,5 @@
 /**
- * Кэш схем моделей: docUrl → поля input (~/.velsgenerate/schema-cache.json, TTL 24ч).
+ * Кэш схем моделей: docUrl → поля input (~/.velsvisual/schema-cache.json, TTL 24ч).
  *
  * Нужен, чтобы `run` мог узнать поля незнакомой модели из живой документации,
  * не платя сетевым запросом за каждый запуск и не требуя обновления CLI при
@@ -13,7 +13,7 @@ import path from "node:path";
 import { fetchDoc } from "./registry.js";
 import { deriveModelMeta, extractInputSchema } from "./schema.js";
 
-export const SCHEMA_CACHE_PATH = path.join(os.homedir(), ".velsgenerate", "schema-cache.json");
+export const SCHEMA_CACHE_PATH = path.join(os.homedir(), ".velsvisual", "schema-cache.json");
 export const SCHEMA_TTL_MS = 24 * 60 * 60 * 1000;
 
 function readCache(cachePath) {

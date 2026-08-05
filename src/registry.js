@@ -1,6 +1,6 @@
 /**
  * Динамический реестр моделей: живой каталог из https://docs.kie.ai/llms.txt
- * (раздел с market-страницами), кэш в ~/.velsgenerate/models-cache.json (TTL 24ч),
+ * (раздел с market-страницами), кэш в ~/.velsvisual/models-cache.json (TTL 24ч),
  * мёрдж со seed-реестром (src/models.js).
  *
  * Цепочка fallback: свежий кэш → старый кэш → встроенный seed.
@@ -15,7 +15,7 @@ import path from "node:path";
 import { SEED_MODELS, dynamicModel } from "./models.js";
 
 export const LLMS_TXT_URL = "https://docs.kie.ai/llms.txt";
-export const CACHE_PATH = path.join(os.homedir(), ".velsgenerate", "models-cache.json");
+export const CACHE_PATH = path.join(os.homedir(), ".velsvisual", "models-cache.json");
 export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const CONCURRENCY = 8;
 

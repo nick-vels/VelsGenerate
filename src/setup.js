@@ -1,7 +1,7 @@
 /**
- * velsgenerate setup (alias init) — интерактивный мастер первичной настройки:
- * 1) API-ключ KIE (проверка через credits, сохранение в ~/.velsgenerate/config.json);
- * 2) установка скилла generate для агента (npx skills add <repo> или --local — копия из пакета);
+ * velsvisual setup (alias init) — интерактивный мастер первичной настройки:
+ * 1) API-ключ KIE (проверка через credits, сохранение в ~/.velsvisual/config.json);
+ * 2) установка скилла visual для агента (npx skills add <repo> или --local — копия из пакета);
  * 3) сводка и подсказки.
  */
 
@@ -15,10 +15,10 @@ import { KieClient, KieError } from "./client.js";
 import { getApiKey, saveApiKey } from "./cli.js";
 
 // Репозиторий скилла для `npx skills add <repo>`.
-export const SKILLS_REPO = "nick-vels/VelsGenerate";
+export const SKILLS_REPO = "nick-vels/VelsVisual";
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const BUNDLED_SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "generate");
+const BUNDLED_SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "visual");
 
 function createAsker(interactive) {
   if (!interactive) {
@@ -74,7 +74,7 @@ async function stepApiKey({ asker, interactive, yes }) {
     } else {
       console.log("  KIE_API_KEY не задан в окружении — ключ не сохранён.");
       console.log("  Задайте позже: export KIE_API_KEY=ваш_ключ");
-      console.log("  или: velsgenerate config --set-key ваш_ключ");
+      console.log("  или: velsvisual config --set-key ваш_ключ");
       return { saved: false, credits: null };
     }
   } else {
@@ -87,7 +87,7 @@ async function stepApiKey({ asker, interactive, yes }) {
       if (!key) {
         const abort = !(await askYesNo(ask, "  Ключ не введён. Попробовать ещё раз?", true));
         if (abort) {
-          console.log("  Пропускаю. Сохранить позже: velsgenerate config --set-key ваш_ключ");
+          console.log("  Пропускаю. Сохранить позже: velsvisual config --set-key ваш_ключ");
           return { saved: false, credits: null };
         }
       }
@@ -103,11 +103,11 @@ async function stepApiKey({ asker, interactive, yes }) {
     if (!yes && interactive && (await askYesNo(ask, "  Повторить ввод ключа?", true))) {
       return stepApiKey({ asker, interactive, yes: false });
     }
-    console.log("  Ключ НЕ сохранён. Повторите: velsgenerate setup");
+    console.log("  Ключ НЕ сохранён. Повторите: velsvisual setup");
     return { saved: false, credits: null };
   } else {
     console.log(`не удалось проверить (${check.error || "сеть недоступна"}).`);
-    console.log("  Сохраняю ключ без проверки — проверьте позже: velsgenerate credits");
+    console.log("  Сохраняю ключ без проверки — проверьте позже: velsvisual credits");
   }
 
   saveApiKey(key);
@@ -116,7 +116,7 @@ async function stepApiKey({ asker, interactive, yes }) {
 }
 
 function installSkillLocal() {
-  const dest = path.join(process.cwd(), ".agents", "skills", "generate");
+  const dest = path.join(process.cwd(), ".agents", "skills", "visual");
   if (!fs.existsSync(BUNDLED_SKILL_DIR)) {
     console.log(`  Бандл скилла не найден в пакете: ${BUNDLED_SKILL_DIR}`);
     return null;
@@ -133,7 +133,7 @@ function npxAvailable() {
 
 async function stepSkill({ asker, interactive, yes, local, repo }) {
   const { ask } = asker;
-  console.log("\nШаг 2/2. Скилл generate для агента");
+  console.log("\nШаг 2/2. Скилл visual для агента");
   const manual = `npx -y skills add ${repo}`;
 
   if (local) {
@@ -148,7 +148,7 @@ async function stepSkill({ asker, interactive, yes, local, repo }) {
 
   let want = true;
   if (!yes && interactive) {
-    want = await askYesNo(ask, "  Установить скилл generate для агента?", true);
+    want = await askYesNo(ask, "  Установить скилл visual для агента?", true);
   }
 
   if (want && !yes && interactive && npxAvailable()) {
@@ -161,7 +161,7 @@ async function stepSkill({ asker, interactive, yes, local, repo }) {
   // Отказ, неинтерактивный режим без --local, или npx недоступен — печатаем команду.
   console.log("  Установите скилл вручную:");
   console.log(`    ${manual}`);
-  console.log("  или локально из пакета: velsgenerate setup --local");
+  console.log("  или локально из пакета: velsvisual setup --local");
   return { installed: false, how: null };
 }
 
@@ -171,10 +171,10 @@ async function stepSkill({ asker, interactive, yes, local, repo }) {
 export async function runSetup(flags = {}) {
   const yes = Boolean(flags["--yes"]);
   const local = Boolean(flags["--local"]);
-  const repo = flags["--repo"] || process.env.VELSGENERATE_SKILLS_REPO || SKILLS_REPO;
+  const repo = flags["--repo"] || process.env.VELSVISUAL_SKILLS_REPO || SKILLS_REPO;
   const interactive = !yes && Boolean(process.stdin.isTTY);
 
-  console.log("VelsGenerate — первичная настройка");
+  console.log("VelsVisual — первичная настройка");
   if (!yes && !interactive) {
     console.log("(stdin не интерактивен — работаю как --yes: без вопросов)");
   }
@@ -189,7 +189,7 @@ export async function runSetup(flags = {}) {
   }
 
   console.log("\nГотово. Сводка:");
-  console.log(`  API-ключ:     ${keyResult.saved ? "сохранён в ~/.velsgenerate/config.json" : "не сохранён"}`);
+  console.log(`  API-ключ:     ${keyResult.saved ? "сохранён в ~/.velsvisual/config.json" : "не сохранён"}`);
   if (keyResult.credits !== null && keyResult.credits !== undefined) {
     console.log(`  Баланс:       ${keyResult.credits} кредитов`);
   }
@@ -197,8 +197,8 @@ export async function runSetup(flags = {}) {
     `  Скилл:        ${skillResult.installed ? `установлен (${skillResult.how})` : "не установлен — команда выше"}`
   );
   console.log("\nДальше:");
-  console.log("  velsgenerate models                 # живой реестр моделей");
-  console.log('  velsgenerate run google/nano-banana --prompt "рыжий кот в скафандре" \\');
+  console.log("  velsvisual models                 # живой реестр моделей");
+  console.log('  velsvisual run google/nano-banana --prompt "рыжий кот в скафандре" \\');
   console.log("    --wait --download ./out           # первая генерация");
   return 0;
 }
