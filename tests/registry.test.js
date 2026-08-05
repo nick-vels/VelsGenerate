@@ -95,9 +95,15 @@ test("mergeRegistries: seed приоритетен, динамика добав�
   assert.equal(kling3.description, "Kling 3");
 
   // seed-модель вне живого каталога — stale, но не удалена
+  const imagen = merged.get("google/imagen4");
+  assert.equal(imagen.stale, true);
+  assert.equal(imagen.api, "jobs");
+
+  // модели выделенных API живут вне market-каталога — они не stale
   const suno = merged.get("suno");
-  assert.equal(suno.stale, true);
+  assert.equal(suno.stale, false);
   assert.equal(suno.api, "suno");
+  assert.ok(suno.docUrl);
 
   assert.equal(merged.size, live.length + Object.keys(SEED_MODELS).length - 1);
 });

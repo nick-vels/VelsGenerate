@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 
 import {
   UsageError,
   buildInput,
   parseArgs,
   parseSetValue,
+  resolveLocalFiles,
   resolveModel,
   validateInput,
 } from "../src/cli.js";
@@ -134,12 +136,15 @@ test("validateInput: gpt4o — size обязателен, нужен prompt ил
 test("validateInput: suno customMode требует style и title", () => {
   const model = resolveModel("suno", null, registry);
   assert.throws(
-    () => validateInput(model, buildInput(model, { setPairs: ["customMode=true"] })),
+    () => validateInput(model, buildInput(model, { prompt: "song", setPairs: ["customMode=true"] })),
     /style/
   );
   validateInput(
     model,
-    buildInput(model, { setPairs: ["customMode=true", "style=rock", "title=Song"] })
+    buildInput(model, {
+      prompt: "song",
+      setPairs: ["customMode=true", "style=rock", "title=Song"],
+    })
   );
 });
 
@@ -149,4 +154,67 @@ test("validateInput: динамическая модель — мягкая ва
     image_field: null, image_list: false, required: [], dynamic: true,
   };
   validateInput(dynamic, buildInput(dynamic, { prompt: "что угодно" }));
+});
+
+// ------------------------------------------------------------------ defaults
+test("buildInput: обязательные поля с дефолтом подставляются, --set главнее", () => {
+  const model = resolveModel("flux-2/pro-text-to-image", null, registry);
+  const data = buildInput(model, { prompt: "кот" });
+  assert.equal(data.aspect_ratio, "1:1");
+  assert.equal(data.resolution, "1K");
+
+  const custom = buildInput(model, { prompt: "кот", setPairs: ["aspect_ratio=16:9"] });
+  assert.equal(custom.aspect_ratio, "16:9");
+  validateInput(model, data);
+});
+
+test("buildInput: подсказка про schema, если модель не описывает поле картинки", () => {
+  const dynamic = {
+    id: "vendor/new-model", category: "video", api: "jobs", prompt_field: "prompt",
+    image_field: null, image_list: false, required: [], dynamic: true,
+  };
+  assert.throws(
+    () => buildInput(dynamic, { prompt: "x", images: ["./a.png"] }),
+    /velsgenerate schema vendor\/new-model/
+  );
+});
+
+// ------------------------------------------------------------------ загрузка файлов
+test("resolveLocalFiles: локальные файлы грузятся из любого поля, URL не трогаются", async () => {
+  const file = fileURLToPath(import.meta.url); // существующий файл
+  const uploads = [];
+  const client = {
+    upload: async (path) => {
+      uploads.push(path);
+      return `https://uploaded/${uploads.length}.png`;
+    },
+  };
+  const model = { prompt_field: "prompt", image_field: null };
+  const data = {
+    prompt: "текст промпта",
+    first_frame_url: file,
+    reference_image_urls: [file, "https://cdn/x.png", "asset://asset-1"],
+    resolution: "480p",
+    duration: 6,
+  };
+  await resolveLocalFiles(client, model, data, () => {});
+
+  assert.match(data.first_frame_url, /^https:\/\/uploaded\//);
+  // один и тот же файл загружается один раз
+  assert.equal(uploads.length, 1);
+  assert.equal(data.reference_image_urls[0], data.first_frame_url);
+  assert.equal(data.reference_image_urls[1], "https://cdn/x.png");
+  assert.equal(data.reference_image_urls[2], "asset://asset-1");
+  assert.equal(data.resolution, "480p");
+  assert.equal(data.duration, 6);
+  assert.equal(data.prompt, "текст промпта");
+});
+
+test("resolveLocalFiles: для --image путь обязан быть файлом или URL", async () => {
+  const client = { upload: async () => "https://uploaded/1.png" };
+  const model = { prompt_field: "prompt", image_field: "image_url" };
+  await assert.rejects(
+    () => resolveLocalFiles(client, model, { image_url: "./нет-такого-файла.png" }, () => {}),
+    UsageError
+  );
 });

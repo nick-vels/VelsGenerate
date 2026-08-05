@@ -10,6 +10,7 @@ import {
   CASCADE_ORDER,
   CREATE_ENDPOINTS,
   STATUS_ENDPOINTS,
+  extractFileUrl,
   normalizeStatus,
 } from "../src/client.js";
 
@@ -42,6 +43,32 @@ test("маршрутизация эндпоинтов", () => {
   assert.equal(STATUS_ENDPOINTS.suno, "/api/v1/generate/record-info");
   assert.deepEqual(new Set(Object.keys(CREATE_ENDPOINTS)), new Set(APIS));
   assert.deepEqual(new Set(Object.keys(STATUS_ENDPOINTS)), new Set(APIS));
+});
+
+// ------------------------------------------------------------------ upload
+test("extractFileUrl: реальный ответ upload API (downloadUrl)", () => {
+  const data = {
+    success: true,
+    fileName: "sky.jpeg",
+    filePath: "kieai/1/images/sky.jpeg",
+    downloadUrl: "https://tempfile.redpandaai.co/kieai/1/images/sky.jpeg",
+    fileSize: 2602701,
+  };
+  assert.equal(extractFileUrl(data), "https://tempfile.redpandaai.co/kieai/1/images/sky.jpeg");
+});
+
+test("extractFileUrl: старые схемы ответа и вложенность", () => {
+  assert.equal(extractFileUrl({ fileUrl: "https://x/1.png" }), "https://x/1.png");
+  assert.equal(extractFileUrl({ url: "https://x/2.png" }), "https://x/2.png");
+  assert.equal(extractFileUrl({ data: { downloadUrl: "https://x/3.png" } }), "https://x/3.png");
+  assert.equal(extractFileUrl({ result: { file: { url: "https://x/4.png" } } }), "https://x/4.png");
+});
+
+test("extractFileUrl: нет URL — null (не путь и не мусор)", () => {
+  assert.equal(extractFileUrl({ filePath: "kieai/1/images/sky.jpeg" }), null);
+  assert.equal(extractFileUrl({ success: true }), null);
+  assert.equal(extractFileUrl(null), null);
+  assert.equal(extractFileUrl("строка"), null);
 });
 
 test("порядок каскада автоопределения API", () => {

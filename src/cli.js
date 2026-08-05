@@ -15,7 +15,9 @@ import {
   downloadFile,
 } from "./client.js";
 import { APIS, CATEGORIES } from "./models.js";
-import { loadRegistry } from "./registry.js";
+import { fetchDoc, loadRegistry } from "./registry.js";
+import { extractInputSchema, formatField } from "./schema.js";
+import { loadModelSchema, mergeModelMeta } from "./schema-cache.js";
 import { runSetup } from "./setup.js";
 
 export const VERSION = "0.1.0";
@@ -116,8 +118,8 @@ function parseSetPairs(pairs) {
 /** Запись реестра по id модели; для моделей вне реестра нужен --api. */
 export function resolveModel(modelId, apiOverride = null, registryModels = null) {
   const entry = registryModels ? registryModels.get(modelId) : null;
-  if (entry) return { ...entry };
-  if (apiOverride) return { ...GENERIC_MODEL, api: apiOverride };
+  if (entry) return { ...entry, id: modelId };
+  if (apiOverride) return { ...GENERIC_MODEL, api: apiOverride, id: modelId };
   throw new UsageError(
     `Неизвестная модель: ${JSON.stringify(modelId)}.\n` +
       "Список моделей: velsgenerate models\n" +
@@ -142,7 +144,16 @@ export function buildInput(model, { prompt = null, images = null, setPairs = nul
   }
   if (images && images.length > 0) {
     const imageField = model.image_field;
-    if (!imageField) throw new UsageError("Эта модель не принимает изображения (--image).");
+    if (!imageField) {
+      // У моделей из живого каталога поле картинки не описано в реестре: имя поля
+      // (image_url / image_urls / first_frame_url / …) смотрим в схеме модели.
+      throw new UsageError(
+        `Для модели ${model.id || ""} не известно поле изображения, флаг --image не подходит.\n` +
+          `Посмотрите схему:  velsgenerate schema ${model.id || "МОДЕЛЬ"}\n` +
+          "и передайте файл или URL в нужное поле: --set ПОЛЕ=ПУТЬ_ИЛИ_URL\n" +
+          "(локальный файл в любом поле CLI загрузит автоматически)"
+      );
+    }
     if (model.image_list) {
       data[imageField] = [...images];
     } else {
@@ -151,6 +162,11 @@ export function buildInput(model, { prompt = null, images = null, setPairs = nul
       }
       data[imageField] = images[0];
     }
+  }
+  // Обязательные поля, у которых в схеме есть значение по умолчанию:
+  // без них API отвечает 422, а угадывать их пользователю незачем.
+  for (const [field, value] of Object.entries(model.defaults || {})) {
+    if (data[field] === undefined) data[field] = value;
   }
   Object.assign(data, parseSetPairs(setPairs));
   if (jsonInputStr) {
@@ -187,7 +203,10 @@ export function validateInput(model, data) {
       else hint = `--set ${field}=ЗНАЧЕНИЕ`;
       return `  - ${field} (задайте через ${hint})`;
     });
-    throw new UsageError("Не заполнены обязательные поля модели:\n" + lines.join("\n"));
+    const tail = model.id
+      ? `\nВсе поля модели: velsgenerate schema ${model.id}`
+      : "";
+    throw new UsageError("Не заполнены обязательные поля модели:\n" + lines.join("\n") + tail);
   }
   if (model.api === "gpt4o" && !data.prompt && !data.filesUrl) {
     throw new UsageError("gpt4o-image требует --prompt и/или --image (filesUrl).");
@@ -201,27 +220,55 @@ export function validateInput(model, data) {
   }
 }
 
-/** Заменяет локальные пути в image-поле на URL после upload. */
-async function resolveImages(client, model, data) {
-  const imageField = model.image_field;
-  if (!imageField || !(imageField in data)) return;
+function isRemoteRef(value) {
+  return typeof value === "string" && /^(https?:\/\/|asset:\/\/|data:)/.test(value);
+}
 
-  const resolve = async (value) => {
-    if (typeof value !== "string") return value;
-    if (value.startsWith("http://") || value.startsWith("https://")) return value;
-    if (fs.existsSync(value) && fs.statSync(value).isFile()) {
-      console.error(`Загрузка файла ${value} ...`);
-      const url = await client.upload(value);
-      console.error(`  -> ${url}`);
-      return url;
+function isLocalFile(value) {
+  if (typeof value !== "string" || value === "" || isRemoteRef(value)) return false;
+  try {
+    return fs.existsSync(value) && fs.statSync(value).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Заменяет локальные пути на URL после upload — во ВСЕХ полях input, не только
+ * в image_field: у моделей живого каталога файл передаётся через --set
+ * (first_frame_url, image_url, reference_image_urls, ...). Промпт не трогаем.
+ * Поле image_field строгое: там путь обязан быть файлом или URL.
+ */
+export async function resolveLocalFiles(client, model, data, log = console.error) {
+  const uploaded = new Map();
+  const upload = async (filePath) => {
+    const key = path.resolve(filePath);
+    if (!uploaded.has(key)) {
+      log(`Загрузка файла ${filePath} ...`);
+      const url = await client.upload(filePath);
+      log(`  -> ${url}`);
+      uploaded.set(key, url);
     }
-    throw new UsageError(`--image: не файл и не URL: ${value}`);
+    return uploaded.get(key);
   };
 
-  if (model.image_list && Array.isArray(data[imageField])) {
-    data[imageField] = await Promise.all(data[imageField].map(resolve));
-  } else {
-    data[imageField] = await resolve(data[imageField]);
+  for (const [field, value] of Object.entries(data)) {
+    if (field === model.prompt_field) continue;
+    const strict = field === model.image_field;
+    const resolve = async (item) => {
+      if (isLocalFile(item)) return upload(item);
+      if (strict && typeof item === "string" && !isRemoteRef(item)) {
+        throw new UsageError(`--image: не файл и не URL: ${item}`);
+      }
+      return item;
+    };
+    if (Array.isArray(value)) {
+      const resolved = [];
+      for (const item of value) resolved.push(await resolve(item));
+      data[field] = resolved;
+    } else {
+      data[field] = await resolve(value);
+    }
   }
 }
 
@@ -389,6 +436,7 @@ async function cmdModels(flags) {
       image_field: m.image_field,
       stale: Boolean(m.stale),
       dynamic: Boolean(m.dynamic),
+      docUrl: m.docUrl || null,
       description: m.description,
     })),
   };
@@ -405,7 +453,92 @@ async function cmdModels(flags) {
       const stale = m.stale ? "  [stale: нет в живом каталоге]" : "";
       console.log(`${id}  [${m.category}/${m.api}]  обязательные: ${required}${stale}`);
       if (m.description) console.log(`    ${m.description}`);
+      if (m.docUrl) console.log(`    схема input: velsgenerate schema ${id}  (${m.docUrl})`);
     }
+  };
+  emit(flags, payload, human);
+  return 0;
+}
+
+/** Предполагаемый адрес страницы модели в market-каталоге (для моделей вне реестра). */
+function guessDocUrl(modelId) {
+  return `https://docs.kie.ai/market/${modelId}.md`;
+}
+
+/**
+ * Дополняет запись реестра метаданными из живой схемы модели (кэш 24ч).
+ * Это то, что позволяет новой модели каталога работать без обновления CLI:
+ * поля промпта/изображения, обязательные поля и их дефолты берутся из документации.
+ */
+async function withLiveSchema(model, modelId, flags) {
+  if (flags["--no-schema"]) return model;
+  const docUrl = model.docUrl || guessDocUrl(modelId);
+  const schema = await loadModelSchema(docUrl, { refresh: Boolean(flags["--refresh-schema"]) });
+  if (!schema) {
+    if (model.dynamic || !model.docUrl) {
+      warn(
+        `схема модели ${modelId} недоступна — поля не проверены. ` +
+          "Если API вернёт 422, сверьтесь с документацией: velsgenerate schema " + modelId
+      );
+    }
+    return model;
+  }
+  return mergeModelMeta(model, schema.meta);
+}
+
+async function cmdSchema(flags, positionals) {
+  const modelId = positionals[0];
+  if (!modelId) throw new UsageError("Укажите модель: velsgenerate schema МОДЕЛЬ");
+  const registry = await loadRegistry({ allowFetch: true, onWarning: warn });
+  const entry = registry.models.get(modelId);
+  if (!entry) {
+    throw new UsageError(
+      `Неизвестная модель: ${JSON.stringify(modelId)}.\n` +
+        `Поиск: velsgenerate models --search ${modelId.split("/").pop()}`
+    );
+  }
+  const docUrl = entry.docUrl || null;
+  if (!docUrl) {
+    throw new UsageError(
+      `Для модели ${modelId} нет страницы в живом каталоге docs.kie.ai` +
+        (entry.stale ? " (модель помечена stale — вероятно, снята с публикации)." : ".") +
+        "\nОбновите каталог: velsgenerate models --refresh"
+    );
+  }
+
+  let markdown;
+  try {
+    markdown = await fetchDoc(docUrl);
+  } catch (exc) {
+    throw new KieError(`не удалось скачать ${docUrl}: ${exc.message}`);
+  }
+  const { fields, block } = extractInputSchema(markdown);
+
+  const payload = {
+    id: modelId,
+    api: entry.api,
+    category: entry.category,
+    docUrl,
+    fields,
+    raw: flags["--raw"] ? block : undefined,
+  };
+
+  const human = () => {
+    console.log(`${modelId}  [${entry.category}/${entry.api}]  ${docUrl}`);
+    if (fields.length === 0) {
+      console.log("Не удалось разобрать схему — откройте страницу документации выше.");
+      return;
+    }
+    console.log("Поля input (* — обязательное):");
+    const width = Math.max(...fields.map((f) => f.name.length));
+    for (const field of fields) {
+      const name = (field.name + (field.required ? "*" : "")).padEnd(width + 1);
+      const meta = formatField(field);
+      console.log(`  ${name}  ${meta}`);
+      if (field.description) console.log(`      ${field.description.slice(0, 300)}`);
+    }
+    console.log("\nПередача значений: --set ПОЛЕ=ЗНАЧЕНИЕ (JSON или строка), файлы — путь или URL.");
+    if (flags["--raw"] && block) console.log(`\n--- сырой YAML схемы ---\n${block}`);
   };
   emit(flags, payload, human);
   return 0;
@@ -427,8 +560,13 @@ async function cmdRun(flags, positionals) {
   const modelId = positionals[0];
   if (!modelId) throw new UsageError("Укажите модель: velsgenerate run МОДЕЛЬ [--prompt ...]");
   // Без сети на каждый запуск: только кэш/seed (allowFetch: false).
-  const registry = await loadRegistry({ allowFetch: false, onWarning: warn });
-  const model = resolveModel(modelId, flags["--api"] || null, registry.models);
+  let registry = await loadRegistry({ allowFetch: false, onWarning: warn });
+  // Модели нет в кэше — возможно, она появилась в каталоге только что: обновляемся.
+  if (!registry.models.has(modelId) && !flags["--api"]) {
+    registry = await loadRegistry({ refresh: true, allowFetch: true, onWarning: warn });
+  }
+  const registryEntry = resolveModel(modelId, flags["--api"] || null, registry.models);
+  const model = await withLiveSchema(registryEntry, modelId, flags);
   const data = buildInput(model, {
     prompt: flags["--prompt"] ?? null,
     images: flags["--image"],
@@ -436,8 +574,28 @@ async function cmdRun(flags, positionals) {
     jsonInputStr: flags["--json-input"],
   });
   validateInput(model, data); // до любых сетевых вызовов
+
+  if (flags["--dry-run"]) {
+    const payload = {
+      dryRun: true,
+      model: modelId,
+      api: model.api,
+      input: data,
+      uploads: Object.entries(data)
+        .flatMap(([field, value]) => (Array.isArray(value) ? value : [value]).map((v) => [field, v]))
+        .filter(([, value]) => isLocalFile(value))
+        .map(([field, value]) => ({ field, file: value })),
+    };
+    emit(flags, payload, () => {
+      console.log(`${modelId} (api: ${model.api}) — запрос не отправлен (--dry-run)`);
+      console.log(JSON.stringify(data, null, 2));
+      for (const u of payload.uploads) console.log(`Будет загружен: ${u.file} → ${u.field}`);
+    });
+    return 0;
+  }
+
   const client = makeClient();
-  await resolveImages(client, model, data);
+  await resolveLocalFiles(client, model, data);
   const taskId = await client.create(model.api, modelId, data);
 
   const payload = { taskId, model: modelId, api: model.api };
@@ -541,13 +699,18 @@ const HELP = `VelsGenerate ${VERSION} — генерация фото/видео
   credits      баланс кредитов
   models       реестр моделей (живой каталог docs.kie.ai, кэш 24ч)
                  флаги: --refresh, --category image|video|audio, --search ТЕКСТ
+  schema МОДЕЛЬ поля input модели из её документации (--raw — сырой YAML)
   upload ФАЙЛ  загрузить локальный файл, напечатать fileUrl
   run МОДЕЛЬ   создать задачу генерации
                  --prompt ТЕКСТ        промпт (кладётся в prompt_field модели)
                  --image ФАЙЛ_ИЛИ_URL  изображение; можно несколько раз
                  --set КЛЮЧ=ЗНАЧЕНИЕ   поле input; значение парсится как JSON
+                                       (локальный файл в любом поле загружается сам)
                  --json-input 'JSON'   сырой JSON-объект поверх собранного input
                  --api ТИП             jobs|veo|runway|gpt4o|flux|suno (для моделей вне реестра)
+                 --dry-run             показать итоговый input и не отправлять запрос
+                 --no-schema           не подтягивать схему модели из документации
+                 --refresh-schema      обновить кэш схемы модели
                  --wait                дождаться результата (polling)
                  --timeout СЕК         таймаут --wait (по умолч. 600)
                  --interval СЕК        интервал polling (по умолч. 5)
@@ -570,9 +733,10 @@ const COMMAND_SPECS = {
     value: ["--category", "--search"],
     handler: cmdModels,
   },
+  schema: { bool: ["--json", "--raw"], handler: cmdSchema },
   upload: { bool: ["--json"], handler: cmdUpload },
   run: {
-    bool: ["--json", "--wait"],
+    bool: ["--json", "--wait", "--no-schema", "--refresh-schema", "--dry-run"],
     value: ["--prompt", "--json-input", "--api", "--timeout", "--interval", "--download"],
     multi: ["--image", "--set"],
     handler: cmdRun,
