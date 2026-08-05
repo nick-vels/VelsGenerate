@@ -15,6 +15,8 @@ import {
   downloadFile,
 } from "./client.js";
 import { APIS, CATEGORIES } from "./models.js";
+import { loadPricing } from "./pricing.js";
+import { recommend } from "./recommend.js";
 import { fetchDoc, loadRegistry } from "./registry.js";
 import { extractInputSchema, formatField } from "./schema.js";
 import { loadModelSchema, mergeModelMeta } from "./schema-cache.js";
@@ -460,6 +462,107 @@ async function cmdModels(flags) {
   return 0;
 }
 
+function formatUsd(value) {
+  return `$${value >= 0.1 ? value.toFixed(2) : value.toFixed(3)}`;
+}
+
+function formatPriceRange(pricing) {
+  if (!pricing) return "цена неизвестна";
+  const credits = pricing.creditsMin === pricing.creditsMax
+    ? `${pricing.creditsMin}`
+    : `${pricing.creditsMin}–${pricing.creditsMax}`;
+  const usd = pricing.usdMin === pricing.usdMax
+    ? formatUsd(pricing.usdMin)
+    : `${formatUsd(pricing.usdMin)}–${formatUsd(pricing.usdMax)}`;
+  const units = pricing.units.length > 0 ? ` ${pricing.units.join("/")}` : "";
+  const approx = pricing.approximate ? "≈" : "";
+  return `${approx}${credits} кредитов${units} (~${usd})`;
+}
+
+async function cmdPricing(flags) {
+  const pricing = await loadPricing({
+    refresh: Boolean(flags["--refresh"]),
+    allowFetch: true,
+    onWarning: warn,
+  });
+  let records = pricing.records;
+  if (flags["--category"]) records = records.filter((r) => r.category === flags["--category"]);
+  if (flags["--search"]) {
+    // Сравнение без дефисов/пробелов: "nano-banana" находит "Google nano banana 2".
+    const needle = String(flags["--search"]).toLowerCase().replace(/[^a-z0-9а-яё]+/g, "");
+    const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9а-яё]+/g, "");
+    records = records.filter(
+      (r) => squash(r.id || "").includes(needle) || squash(r.description).includes(needle)
+    );
+  }
+  const payload = {
+    source: pricing.source,
+    fetchedAt: pricing.fetchedAt,
+    count: records.length,
+    prices: records,
+  };
+  const human = () => {
+    const date = pricing.fetchedAt ? pricing.fetchedAt.slice(0, 10) : "—";
+    console.log(`Источник: ${pricing.source} (прайс от ${date}), записей: ${records.length}`);
+    if (records.length === 0) {
+      console.log("Записи не найдены. Попробуйте: velsgenerate pricing --refresh");
+      return;
+    }
+    for (const r of records) {
+      console.log(`${r.id || r.description}  [${r.category}]  ${r.credits} кредитов ${r.unit} (~${formatUsd(r.usd)})`);
+      if (r.id && r.description) console.log(`    ${r.description}`);
+    }
+  };
+  emit(flags, payload, human);
+  return 0;
+}
+
+const TIER_LABELS = {
+  quality: "максимальное качество",
+  balanced: "баланс цена/качество",
+  budget: "бюджетно, для объёма",
+};
+
+async function cmdRecommend(flags, positionals) {
+  const category = positionals[0];
+  if (!category || !CATEGORIES.includes(category)) {
+    throw new UsageError(`Укажите категорию: velsgenerate recommend ${CATEGORIES.join("|")}`);
+  }
+  const registry = await loadRegistry({
+    refresh: Boolean(flags["--refresh"]),
+    allowFetch: true,
+    onWarning: warn,
+  });
+  const pricing = await loadPricing({
+    refresh: Boolean(flags["--refresh"]),
+    allowFetch: true,
+    onWarning: warn,
+  });
+  const options = recommend(category, registry.models, pricing.records);
+  const payload = {
+    category,
+    pricingSource: pricing.source,
+    pricingFetchedAt: pricing.fetchedAt,
+    options,
+  };
+  const human = () => {
+    if (options.length === 0) {
+      console.log(`Моделей категории ${category} не найдено. Обновите каталог: velsgenerate models --refresh`);
+      return;
+    }
+    console.log(`Рекомендуемые модели (${category}) — последняя версия каждого популярного семейства:`);
+    options.forEach((option, i) => {
+      const tier = option.tier ? `  [${TIER_LABELS[option.tier]}]` : "";
+      console.log(`${i + 1}. ${option.model}${tier}`);
+      console.log(`   ${formatPriceRange(option.pricing)}`);
+      if (option.description) console.log(`   ${option.description}`);
+    });
+    console.log("\nЗапуск: velsgenerate run МОДЕЛЬ --prompt ... --wait --download ./out --json");
+  };
+  emit(flags, payload, human);
+  return 0;
+}
+
 /** Предполагаемый адрес страницы модели в market-каталоге (для моделей вне реестра). */
 function guessDocUrl(modelId) {
   return `https://docs.kie.ai/market/${modelId}.md`;
@@ -699,6 +802,11 @@ const HELP = `VelsGenerate ${VERSION} — генерация фото/видео
   credits      баланс кредитов
   models       реестр моделей (живой каталог docs.kie.ai, кэш 24ч)
                  флаги: --refresh, --category image|video|audio, --search ТЕКСТ
+  pricing      цены моделей в кредитах и $ (kie.ai/pricing, кэш 24ч)
+                 флаги: --refresh, --category image|video|audio, --search ТЕКСТ
+  recommend    подбор модели под категорию: последняя версия каждого
+    КАТЕГОРИЯ    популярного семейства с ценами и тиром качества
+                 (image|video|audio), флаги: --refresh
   schema МОДЕЛЬ поля input модели из её документации (--raw — сырой YAML)
   upload ФАЙЛ  загрузить локальный файл, напечатать fileUrl
   run МОДЕЛЬ   создать задачу генерации
@@ -733,6 +841,12 @@ const COMMAND_SPECS = {
     value: ["--category", "--search"],
     handler: cmdModels,
   },
+  pricing: {
+    bool: ["--json", "--refresh"],
+    value: ["--category", "--search"],
+    handler: cmdPricing,
+  },
+  recommend: { bool: ["--json", "--refresh"], handler: cmdRecommend },
   schema: { bool: ["--json", "--raw"], handler: cmdSchema },
   upload: { bool: ["--json"], handler: cmdUpload },
   run: {
