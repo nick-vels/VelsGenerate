@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Тесты (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "20", "22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # Зависимостей нет — npm ci не нужен.
+      - run: npm test
+
+  package:
+    name: Проверка содержимого пакета
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm pack --dry-run
+
+  registry-audit:
+    name: Сверка seed-реестра с docs.kie.ai
+    runs-on: ubuntu-latest
+    # Ходит в сеть за живой документацией: падение означает, что каталог kie.ai
+    # изменился и seed-реестр пора обновить — но это не должно блокировать PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm run audit:registry
