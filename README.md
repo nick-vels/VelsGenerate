@@ -8,6 +8,11 @@ __     _______ _     ____   ____ _____ _   _ _____ ____      _  _____ _____
 
 # VelsGenerate
 
+[![npm](https://img.shields.io/npm/v/velsgenerate.svg)](https://www.npmjs.com/package/velsgenerate)
+[![CI](https://github.com/nick-vels/VelsGenerate/actions/workflows/ci.yml/badge.svg)](https://github.com/nick-vels/VelsGenerate/actions/workflows/ci.yml)
+[![node](https://img.shields.io/node/v/velsgenerate.svg)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/velsgenerate.svg)](LICENSE)
+
 CLI на Node.js для генерации **фото, видео и аудио** через [KIE API](https://kie.ai) (docs.kie.ai).
 Один инструмент поверх всех API платформы: универсальный Market API (jobs), Seedance,
 GPT Image, Wan, Suno, ElevenLabs и десятки других моделей.
