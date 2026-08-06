@@ -5,10 +5,13 @@ import { fileURLToPath } from "node:url";
 import {
   UsageError,
   buildInput,
+  expandSearchTerms,
+  matchesSearch,
   parseArgs,
   parseSetValue,
   resolveLocalFiles,
   resolveModel,
+  squashText,
   validateInput,
 } from "../src/cli.js";
 import { SEED_MODELS } from "../src/models.js";
@@ -32,6 +35,38 @@ test("parseArgs: неизвестный флаг и alias", () => {
   assert.throws(() => parseArgs(["--nope"], {}), UsageError);
   const { flags } = parseArgs(["-o", "out.png"], { value: ["--output"], alias: { "-o": "--output" } });
   assert.equal(flags["--output"], "out.png");
+});
+
+// ------------------------------------------------------------------ search
+test("squashText: регистр, дефисы, слэши и точки не влияют на сравнение", () => {
+  assert.equal(squashText("Nano-Banana / 2.0"), "nanobanana20");
+  assert.equal(squashText(null), "");
+});
+
+test("expandSearchTerms: запрос разворачивается в синонимический кластер", () => {
+  const terms = expandSearchTerms("edit");
+  assert.ok(terms.includes("imagetoimage"));
+  assert.ok(terms.includes("remix"));
+  // "редактирование" подхватывается по основе "редактир"
+  assert.ok(expandSearchTerms("редактирование").includes("imagetoimage"));
+  // запрос вне кластеров остаётся собой
+  assert.deepEqual(expandSearchTerms("seedream"), ["seedream"]);
+  assert.deepEqual(expandSearchTerms(""), []);
+});
+
+test("matchesSearch: edit находит модели, названные image-to-image", () => {
+  const terms = expandSearchTerms("edit");
+  assert.ok(matchesSearch(terms, "gpt-image-2-image-to-image", "GPT Image 2 - Image To Image"));
+  assert.ok(matchesSearch(terms, "google/nano-banana-edit", "Редактирование изображений."));
+  assert.ok(matchesSearch(terms, "ideogram/v3-remix", ""));
+  assert.ok(!matchesSearch(terms, "gpt-image/1.5-text-to-image", "GPT Image 1.5 text-to-image."));
+});
+
+test("matchesSearch: обратное направление и пустой запрос", () => {
+  // image-to-image находит модели, названные edit
+  assert.ok(matchesSearch(expandSearchTerms("image-to-image"), "qwen/image-edit", ""));
+  // без запроса фильтр пропускает всё
+  assert.ok(matchesSearch([], "любая/модель", null));
 });
 
 // ------------------------------------------------------------------ --set

@@ -1,6 +1,6 @@
 {
   "name": "velsvisual",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CLI для генерации фото/видео/аудио через KIE API (kie.ai). Ноль зависимостей, живой реестр моделей.",
   "type": "module",
   "bin": {

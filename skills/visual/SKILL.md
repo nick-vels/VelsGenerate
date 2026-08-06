@@ -18,6 +18,11 @@ velsvisual models --category image --search nano --json   # поиск по id �
 velsvisual schema МОДЕЛЬ --json          # реальные поля input этой модели
 ```
 
+`--search` понимает синонимы задач и игнорирует дефисы/регистр: `edit` находит и
+`google/nano-banana-edit`, и `gpt-image-2-image-to-image`, и `ideogram/v3-remix`
+(вендоры называют одно и то же по-разному). То же для `tts`/`озвучка`,
+`image-to-video`/`оживи`, `upscale`/`апскейл`.
+
 В выводе `models --json` у каждой модели есть `required`, `api`, `docUrl` и пометка
 `[stale]` (в живом каталоге модели больше нет — ищи свежий аналог через `--search`).
 

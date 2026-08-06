@@ -22,7 +22,7 @@ import { extractInputSchema, formatField } from "./schema.js";
 import { loadModelSchema, mergeModelMeta } from "./schema-cache.js";
 import { runSetup } from "./setup.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 export const CONFIG_PATH = path.join(os.homedir(), ".velsvisual", "config.json");
 
 /** Ошибка использования CLI (exit code 2). */
@@ -43,6 +43,50 @@ const GENERIC_MODEL = {
   required: [],
   description: "Модель вне реестра.",
 };
+
+// ------------------------------------------------------------------ search
+// Вендоры kie.ai называют одну и ту же задачу по-разному: редактирование живёт
+// и в google/nano-banana-edit, и в gpt-image-2-image-to-image, и в
+// ideogram/v3-remix. Без синонимов --search edit теряет больше половины моделей
+// редактирования (все, что названы image-to-image).
+const SEARCH_SYNONYMS = [
+  ["edit", "imagetoimage", "i2i", "img2img", "remix", "inpaint", "редактир", "правк"],
+  ["texttoimage", "t2i", "txt2img"],
+  ["imagetovideo", "i2v", "оживи", "анимац"],
+  ["texttovideo", "t2v"],
+  ["upscale", "апскейл", "увеличен"],
+  ["texttospeech", "tts", "speech", "озвуч", "голос"],
+  ["music", "song", "музык", "песн"],
+];
+
+/** Нормализация для сравнения: только буквы и цифры ("nano-banana" ≈ "Nano Banana"). */
+export function squashText(value) {
+  return String(value ?? "").toLowerCase().replace(/[^a-z0-9а-яё]+/g, "");
+}
+
+/**
+ * Запрос → список нормализованных подстрок для матчинга.
+ * Кластер подхватывается, если запрос начинается с одного из его терминов:
+ * "edits" → "edit", "редактирование" → "редактир".
+ */
+export function expandSearchTerms(query) {
+  const needle = squashText(query);
+  if (!needle) return [];
+  const terms = new Set([needle]);
+  for (const cluster of SEARCH_SYNONYMS) {
+    if (cluster.some((term) => needle.startsWith(term))) {
+      for (const term of cluster) terms.add(term);
+    }
+  }
+  return [...terms];
+}
+
+/** Совпадает ли хотя бы один термин хотя бы с одним из полей записи. */
+export function matchesSearch(terms, ...fields) {
+  if (terms.length === 0) return true;
+  const haystack = fields.map(squashText).filter(Boolean);
+  return terms.some((term) => haystack.some((field) => field.includes(term)));
+}
 
 // ------------------------------------------------------------------ args
 /**
@@ -420,10 +464,8 @@ async function cmdModels(flags) {
   let items = [...registry.models.entries()].sort(([a], [b]) => a.localeCompare(b));
   if (flags["--category"]) items = items.filter(([, m]) => m.category === flags["--category"]);
   if (flags["--search"]) {
-    const needle = String(flags["--search"]).toLowerCase();
-    items = items.filter(
-      ([id, m]) => id.toLowerCase().includes(needle) || (m.description || "").toLowerCase().includes(needle)
-    );
+    const terms = expandSearchTerms(flags["--search"]);
+    items = items.filter(([id, m]) => matchesSearch(terms, id, m.description));
   }
   const payload = {
     source: registry.source,
@@ -488,12 +530,8 @@ async function cmdPricing(flags) {
   let records = pricing.records;
   if (flags["--category"]) records = records.filter((r) => r.category === flags["--category"]);
   if (flags["--search"]) {
-    // Сравнение без дефисов/пробелов: "nano-banana" находит "Google nano banana 2".
-    const needle = String(flags["--search"]).toLowerCase().replace(/[^a-z0-9а-яё]+/g, "");
-    const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9а-яё]+/g, "");
-    records = records.filter(
-      (r) => squash(r.id || "").includes(needle) || squash(r.description).includes(needle)
-    );
+    const terms = expandSearchTerms(flags["--search"]);
+    records = records.filter((r) => matchesSearch(terms, r.id, r.description));
   }
   const payload = {
     source: pricing.source,
@@ -804,6 +842,8 @@ const HELP = `VelsVisual ${VERSION} — генерация фото/видео/�
                  флаги: --refresh, --category image|video|audio, --search ТЕКСТ
   pricing      цены моделей в кредитах и $ (kie.ai/pricing, кэш 24ч)
                  флаги: --refresh, --category image|video|audio, --search ТЕКСТ
+               --search понимает синонимы задач: edit = image-to-image = i2i =
+               remix, tts = озвучка, upscale = апскейл; дефисы и регистр не важны
   recommend    подбор модели под категорию: последняя версия каждого
     КАТЕГОРИЯ    популярного семейства с ценами и тиром качества
                  (image|video|audio), флаги: --refresh
